@@ -1,0 +1,172 @@
+#to make the Palau map in ggplot 
+library(ggthemes)
+library(ggplot2)
+library(ggnewscale)
+library(mapdata)
+library(maptools)
+library(vegan)
+library(viridis)
+library(rgdal)
+library(tidyverse)
+library(rnaturalearthdata)
+library(rnaturalearth)
+library(sf)
+
+#create a shape file for Palau that is R readable 
+PalauMap<- readOGR(dsn ="~/Desktop/Microarthropod Project/graphs_R/Palau_Shoreline.shp")
+PalauMap
+plot(PalauMap)
+x=PalauMap$coords [,1]
+y=PalauMap$coords [,2]
+obj$map$x<-x
+obj$map$y<-y
+plot(obj,colors=cols,ftype="i",fsize=0.6,cex.points=c(0.7,1.2))
+xlim(c(-134.004601,134.778555)),ylim=c(8.113085,6.837998))
+
+      min      max
+x 402967.8 469279.9
+y 761450.0 903365.4
+
+#fortify map 
+fortPalau_df <- fortify(PalauMap)
+
+#read coordinate files
+#palau only
+jitterAdj=read.table("~/Desktop/jitterCordNewNew.txt",header=T,sep="\t")
+#austrailian-inclusive map 
+ausLocality=read.table("~/Desktop/seAsia_coord_aus.txt",header=T,sep="\t")
+
+#black - palau
+ggplot(data=jitterAdj, aes(x=lat, y=long))+ 
+geom_path(data = fortPalau_df, aes(x = long, y = lat, group = group),color = 'gray', fill = "white", size = .2)+
+geom_point(size=1,shape=21,aes(color="black",fill=specimen))+
+scale_fill_manual(values=met.brewer("Ingres",27))+
+theme_void()+theme(legend.position="none")
+#save
+ggsave("palauCoord_black.png",plot=last_plot(),bg="transparent")
+#white - palau
+ggplot(data=jitterAdj, aes(x=lat, y=long))+ 
+geom_path(data = fortPalau_df, aes(x = long, y = lat, group = group),color = 'black', fill = "white", size = .2)+
+theme_void()+theme(legend.position="none")
+#save
+ggsave("palauCoord_white.png",plot=last_plot(),bg="transparent")
+#black? indopacific 
+ggplot(ausLocality, aes(x=Long, y= Lat)) +   
+borders("world",fill=NA)  +
+geom_point(color=ausLocality$globNode, fill=ausLocality$globNode, size = 1) +
+scale_color_manual(values=met.brewer("Monet",70))+ 
+scale_fill_manual(values = met.brewer("Monet",70))+
+scale_x_continuous( limits=c(90, 165)) +
+scale_y_continuous(limits=c(-40, 35)) +theme_void()
+#save
+ggsave("ausOccur_alt.png",plot=last_plot(),bg="transparent")
+
+##pruning phylogenetic trees 
+#these are on the bioconductor repository - install through there
+BiocManager::install("treeio")
+BiocManager::install("ggtree")
+#this is another off-cran package 
+remotes::install_github("davidnipperess/PDcalc")
+#the rest are on cran :)
+#load 
+library(treeio)
+library(ape)
+library(ggtree)
+library(PDcalc)
+library(phytools)
+library(ggplot2)
+library(ggthemes)
+library(mapdata)
+
+#read tree - converted raxml support tree into a .nex file to upload into R
+apeTree <- "~/Desktop/Arachnid Project/manuscriptFiles/allSequences_&aus_COIupdated.fasta_alignment_1.raxml_support.nex"
+phylo<- ape::read.nexus(apeTree)
+#pdcalc to collapse into a subtree - used 0.05 subtree distance 
+subtree=phyloprunr(phylo, 48, trees = TRUE)
+
+ggtree(subtree) + geom_text(aes(label=node), hjust=-.3)
+ggtree(subtree)+ geom_tiplab() + xlim(0, 1)
+
+#subset Palau node (node 62 on collapsed tree)
+palauClade <- tree_subset(subtree[[1]], node=62, levels_back=0)
+
+#generate tree
+ggtree(palauClade)
+ggtree(palauClade) + geom_tiplab() + xlim(0, .5)
+
+sub.tree=as.phylo(subtree[[1]])
+sub.tree
+
+#load locality data 
+globalLocality =read.table("~/Desktop/Arachnid Project/manuscriptFiles/allNodes_locality.txt", header = T, sep = '\t')
+#matrix
+globalCoordinates=as.matrix(globalLocality)
+#extract rows, make into numeric object
+latMat = globalCoordinates[,2 ]
+latMat=as.numeric(latMat)
+longMat = globalCoordinates[ ,3]
+longMat=as.numeric(longMat)
+#extract taxa names
+taxaNames = globalCoordinates[ , 1]
+#write to new dataframe
+coordMat=cbind(latMat,longMat)
+colnames(coordMat) <- c("lat", "long")
+rownames(coordMat) <- taxaNames
+#make phylo to map object
+obj<-phylo.to.map(sub.tree,coordMat,database="worldHires",xlim=c(90, 165),ylim=c(-40, 18),plot=FALSE,direction="rightwards")
+obj<-phylo.to.map(sub.tree,coordMat,database="worldHires",xlim=c(90, 165),ylim=c(-40, 18),plot=FALSE)
+#make color palette
+cols<-setNames(sample(met.brewer("Ingres",n=Ntip(sub.tree))),
+    sub.tree$tip.label)
+#plot
+plot(obj,direction="rightwards",colors=cols,ftype="off",cex.points=c(1,.75))
+
+#plotting the Palau-only clade
+#load locality data 
+palauClade_locality =read.table("~/Desktop/Arachnid Project/manuscriptFiles/palauClade_locality.txt", header = T, sep = '\t')
+#matrix
+palauClade_coordinates=as.matrix(palauClade_locality)
+#extract rows, make into numeric object
+latMat_p = palauClade_coordinates[,2 ]
+latMat_p=as.numeric(latMat_p)
+longMat_p = palauClade_coordinates[ ,3]
+longMat_p=as.numeric(longMat_p)
+#extract taxa names
+taxaNames_p = palauClade_coordinates[ , 1]
+#write to new dataframe
+coordMat_p=cbind(latMat_p,longMat_p)
+colnames(coordMat_p) <- c("lat", "long")
+rownames(coordMat_p) <- taxaNames_p
+#make phylo to map object
+objP<-phylo.to.map(palauClade,coordMat_p,database="worldHires",xlim=c(90, 165),ylim=c(-40, 18),plot=FALSE)
+#make color palette
+colsP<-setNames(sample(met.brewer("Navajo",n=Ntip(palauClade))),
+    palauClade$tip.label)
+#plot
+plot(objP,direction="rightwards",colors=colsP,ftype="off",cex.points=c(1,.75))
+
+#Palau map  
+onlyPalau_locality =read.table("~/Desktop/Arachnid Project/manuscriptFiles/palau_onlyPalau_locality.txt", header = T, sep = '\t')
+#matrix
+onlyPalau_coordinates=as.matrix(onlyPalau_locality)
+#extract rows, make into numeric object
+latMat_palau = onlyPalau_coordinates[,2 ]
+latMat_palau=as.numeric(latMat_palau)
+longMat_palau = onlyPalau_coordinates[ ,3]
+longMat_palau=as.numeric(longMat_palau)
+#extract taxa names
+taxaNames_palau = onlyPalau_coordinates[ , 1]
+#write to new dataframe
+coordMat_palau=cbind(latMat_palau,longMat_palau)
+colnames(coordMat_palau) <- c("lat", "long")
+rownames(coordMat_palau) <- taxaNames_palau
+#make phylo to map object
+palauObj<-phylo.to.map(palauClade,coordMat_palau,database="worldHires",xlim=c(130, 135),ylim=c(6, 10),plot=FALSE)
+#make color palette
+colsPalau<-setNames(sample(met.brewer("Navajo",n=Ntip(palauClade))),
+    palauClade$tip.label)
+#plot
+plot(palauObj,direction="rightwards",colors=colsPalau,ftype="off",cex.points=c(1,.75))
+
+#because the phylo-to-map mapper doens't have a great resolution for Palau, and it doesn't like the shapefile, I added the Palau shp map with the coordinates from ggplot over the coordinates from phylo to map and combined them in illustrator for the figure.
+#I might try to see if I can set the ggplot object as the map object or phylo to map? But for now this method will do. 
