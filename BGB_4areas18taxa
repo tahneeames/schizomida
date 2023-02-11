@@ -1,7 +1,8 @@
 ### read in phylogeny
 
 ### convert to ultrametric; export; re-import ultrametric phylogeny
-
+### check these sources: https://www.r-bloggers.com/2021/07/three-ways-to-check-and-fix-ultrametric-phylogenies/ 
+### and this: https://pedrohbraga.github.io/PhyloCompMethods-in-R-workshop/PhyloCompMethodsMaterial.html 
 
 
 
