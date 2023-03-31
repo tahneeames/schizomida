@@ -1,4 +1,5 @@
 #using compute canada software suite to align COI sequence results and build the base phylogenetic tree with all sequences 
+#Unix 
 
 #load software tools 
 module load CVMFS_CC
